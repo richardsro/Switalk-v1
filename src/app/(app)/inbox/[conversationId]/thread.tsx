@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { sendReply } from "../actions";
+import { sendReply, markConversationRead } from "../actions";
 import type { Message } from "@/lib/types";
 
 export function ConversationThread({
@@ -21,6 +21,13 @@ export function ConversationThread({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Mark the thread read after mount (server actions can't revalidate
+  // during render), and again whenever a new inbound message arrives
+  // while the thread is open.
+  useEffect(() => {
+    markConversationRead(conversationId);
+  }, [conversationId, messages.length]);
 
   // Live updates: new inbound messages appear instantly via Supabase Realtime
   useEffect(() => {
@@ -61,30 +68,17 @@ export function ConversationThread({
 
     const result = await sendReply({ conversationId, content });
     setSending(false);
-    if (!result.ok) {
+    if (!result.ok || !result.message) {
       setError(result.error ?? "Failed to send");
       return;
     }
     setDraft("");
-    // Optimistic append; realtime INSERT is deduped by id
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        user_id: "",
-        channel_id: "",
-        conversation_id: conversationId,
-        contact_id: null,
-        external_id: null,
-        direction: "outbound",
-        sender_name: null,
-        sender_handle: null,
-        content,
-        is_read: true,
-        received_at: new Date().toISOString(),
-        raw: null,
-      },
-    ]);
+    // Append the real inserted row — its id matches the Realtime INSERT
+    // event, so the id-based dedupe above prevents a duplicate.
+    const sent = result.message;
+    setMessages((prev) =>
+      prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]
+    );
   }
 
   return (

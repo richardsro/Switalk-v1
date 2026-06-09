@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getAdapter } from "@/lib/channels";
-import type { Channel, Conversation } from "@/lib/types";
+import { broadcast, webchatTopic } from "@/lib/realtime";
+import type { Channel, Conversation, Message } from "@/lib/types";
 
 const replySchema = z.object({
   conversationId: z.string().uuid(),
@@ -14,7 +15,7 @@ const replySchema = z.object({
 export async function sendReply(input: {
   conversationId: string;
   content: string;
-}): Promise<{ ok: boolean; error?: string }> {
+}): Promise<{ ok: boolean; error?: string; message?: Message }> {
   const parsed = replySchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid message" };
 
@@ -35,8 +36,15 @@ export async function sendReply(input: {
     .channels;
 
   let externalId: string | null = null;
-  if (channel.type !== "webchat") {
-    try {
+  try {
+    if (channel.type === "webchat") {
+      // Delivered to the visitor's open widget via Realtime broadcast
+      await broadcast(
+        webchatTopic(channel.external_id!, conversation.external_id!),
+        "reply",
+        { content: parsed.data.content, at: new Date().toISOString() }
+      );
+    } else {
       const adapter = getAdapter(channel.type);
       const result = await adapter.sendMessage(
         channel,
@@ -44,24 +52,31 @@ export async function sendReply(input: {
         parsed.data.content
       );
       externalId = result.externalId;
-    } catch (err) {
-      return {
-        ok: false,
-        error: err instanceof Error ? err.message : "Failed to send",
-      };
     }
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Failed to send",
+    };
   }
 
-  await supabase.from("messages").insert({
-    user_id: user.id,
-    channel_id: channel.id,
-    conversation_id: conversation.id,
-    contact_id: conversation.contact_id,
-    external_id: externalId,
-    direction: "outbound",
-    content: parsed.data.content,
-    is_read: true,
-  });
+  const { data: inserted, error: insertError } = await supabase
+    .from("messages")
+    .insert({
+      user_id: user.id,
+      channel_id: channel.id,
+      conversation_id: conversation.id,
+      contact_id: conversation.contact_id,
+      external_id: externalId,
+      direction: "outbound",
+      content: parsed.data.content,
+      is_read: true,
+    })
+    .select("*")
+    .single();
+  if (insertError || !inserted) {
+    return { ok: false, error: "Sent, but failed to save locally" };
+  }
 
   await supabase
     .from("conversations")
@@ -72,7 +87,7 @@ export async function sendReply(input: {
     .eq("id", conversation.id);
 
   revalidatePath("/inbox");
-  return { ok: true };
+  return { ok: true, message: inserted as Message };
 }
 
 export async function markConversationRead(conversationId: string) {

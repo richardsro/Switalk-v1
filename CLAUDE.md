@@ -39,11 +39,19 @@ Outbound: channel adapters in `src/lib/channels/`. Scheduled posts: Inngest
 Scaffold complete: auth (magic link + Google), inbox (list + realtime thread +
 reply), poster (composer + Inngest publish), contacts, channel connect
 (Telegram live; Meta OAuth coded, needs App Review), Stripe billing
-(checkout/portal/webhook), webchat widget, email webhook.
+(checkout/portal/webhook), email webhook. **Webchat is fully live end-to-end**:
+creation UI + embed snippet in Settings → Channels, visitor messages ingest
+via `/api/webchat`, inbox replies reach the visitor via Realtime broadcast
+(`src/lib/realtime.ts`, topic `webchat:{widgetId}:{visitorId}`). Trial expiry
+is enforced via `profiles.trial_ends_at` + `getEffectivePlan()` in
+`src/lib/billing.ts` — use it (not raw subscription reads) in any new
+quota-gated action.
 
-Not yet built: media upload for posts (Supabase Storage), webchat widget
-creation UI, sender profile enrichment (Graph lookup), LinkedIn/TikTok
-adapters, follow-up reminders (CRM phase 2), team seats (Business plan).
+Not yet built: media upload for posts (Supabase Storage) — blocks Instagram
+publishing; webchat history replay on widget reopen (broadcasts are lost if
+the widget is closed); sender profile enrichment (Graph lookup);
+LinkedIn/TikTok adapters; follow-up reminders (CRM phase 2); team seats
+(Business plan).
 
 ## Business gates (context for prioritisation)
 

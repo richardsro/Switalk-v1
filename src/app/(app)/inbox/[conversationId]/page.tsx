@@ -4,7 +4,6 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { ChannelIcon, CHANNEL_LABELS } from "@/components/channel-icon";
 import { ConversationThread } from "./thread";
-import { markConversationRead } from "../actions";
 import type { Channel, Contact, Message } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -33,10 +32,6 @@ export default async function ConversationPage({
 
   const channel = conversation.channels as Channel;
   const contact = conversation.contacts as Contact | null;
-
-  if (conversation.unread_count > 0) {
-    await markConversationRead(conversation.id);
-  }
 
   return (
     <div className="mx-auto flex h-dvh max-w-2xl flex-col md:h-screen">

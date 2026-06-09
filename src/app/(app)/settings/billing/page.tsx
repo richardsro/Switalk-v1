@@ -3,8 +3,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { PLAN_LIMITS } from "@/lib/plans";
-import type { Plan, Subscription } from "@/lib/types";
+import { getEffectivePlan } from "@/lib/billing";
+import type { Plan } from "@/lib/types";
 import { startCheckout, openBillingPortal } from "./actions";
+import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";
 
@@ -16,12 +18,11 @@ const PLANS: Array<{ plan: Exclude<Plan, "trial">; blurb: string; highlight?: bo
 
 export default async function BillingPage() {
   const supabase = createClient();
-  const { data } = await supabase
-    .from("subscriptions")
-    .select("*")
-    .maybeSingle();
-  const sub = data as Subscription | null;
-  const currentPlan: Plan = sub?.plan ?? "trial";
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { plan: currentPlan, trialExpired, trialEndsAt } =
+    await getEffectivePlan(supabase, user!.id);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
@@ -32,7 +33,18 @@ export default async function BillingPage() {
           <Badge color={currentPlan === "trial" ? "yellow" : "green"}>
             {PLAN_LIMITS[currentPlan].label}
           </Badge>
+          {currentPlan === "trial" && trialEndsAt && !trialExpired && (
+            <span className="ml-2">
+              ends {format(new Date(trialEndsAt), "d MMM yyyy")}
+            </span>
+          )}
         </p>
+        {trialExpired && (
+          <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+            Your free trial has ended. Pick a plan below to keep connecting
+            channels and scheduling posts — your inbox and data are untouched.
+          </p>
+        )}
       </header>
 
       <div className="flex flex-col gap-4">

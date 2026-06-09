@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { canAddChannel } from "@/lib/plans";
-import type { Plan } from "@/lib/types";
+import { getEffectivePlan, TRIAL_EXPIRED_ERROR } from "@/lib/billing";
 
 async function assertChannelQuota(): Promise<
   { ok: true; userId: string } | { ok: false; error: string }
@@ -14,11 +14,11 @@ async function assertChannelQuota(): Promise<
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Not signed in" };
 
-  const [{ data: sub }, { count }] = await Promise.all([
-    supabase.from("subscriptions").select("plan").eq("user_id", user.id).maybeSingle(),
+  const [{ plan, trialExpired }, { count }] = await Promise.all([
+    getEffectivePlan(supabase, user.id),
     supabase.from("channels").select("id", { count: "exact", head: true }).eq("user_id", user.id),
   ]);
-  const plan: Plan = (sub?.plan as Plan) ?? "trial";
+  if (trialExpired) return { ok: false, error: TRIAL_EXPIRED_ERROR };
 
   if (!canAddChannel(plan, count ?? 0)) {
     return {
@@ -81,6 +81,30 @@ export async function connectTelegram(
       error: error.code === "23505" ? "This bot is already connected" : "Could not save channel",
     };
   }
+
+  revalidatePath("/settings/channels");
+  return { ok: true };
+}
+
+/**
+ * Create a webchat widget: the channel's external_id IS the widget id used
+ * by the embed snippet and the /api/webchat ingest endpoint.
+ */
+export async function createWebchat(
+  name: string
+): Promise<{ ok: boolean; error?: string }> {
+  const quota = await assertChannelQuota();
+  if (!quota.ok) return quota;
+
+  const label = name.trim().slice(0, 60) || "Website chat";
+  const supabase = createClient();
+  const { error } = await supabase.from("channels").insert({
+    user_id: quota.userId,
+    type: "webchat",
+    name: label,
+    external_id: crypto.randomUUID(),
+  });
+  if (error) return { ok: false, error: "Could not create widget" };
 
   revalidatePath("/settings/channels");
   return { ok: true };

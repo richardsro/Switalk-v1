@@ -6,7 +6,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { inngest } from "@/lib/inngest/client";
 import { canSchedulePost } from "@/lib/plans";
-import type { Plan } from "@/lib/types";
+import { getEffectivePlan, TRIAL_EXPIRED_ERROR } from "@/lib/billing";
 
 const postSchema = z.object({
   content: z.string().min(1).max(5000),
@@ -30,13 +30,9 @@ export async function schedulePost(input: {
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Not signed in" };
 
-  // Plan gating: Lite = 10 posts/month
-  const { data: sub } = await supabase
-    .from("subscriptions")
-    .select("plan")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  const plan: Plan = (sub?.plan as Plan) ?? "trial";
+  // Plan gating: Lite = 10 posts/month; expired trial = blocked
+  const { plan, trialExpired } = await getEffectivePlan(supabase, user.id);
+  if (trialExpired) return { ok: false, error: TRIAL_EXPIRED_ERROR };
 
   const { count } = await supabase
     .from("scheduled_posts")

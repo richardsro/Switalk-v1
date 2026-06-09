@@ -66,11 +66,13 @@ public/widget.js            embeddable webchat snippet
 ## Channel rollout order
 
 1. **Telegram** (no review, 2-minute connect) — live now
-2. **Webchat + Email** — live now (webchat widget, inbound email webhook)
-3. **Facebook / Instagram / WhatsApp** — code complete; requires Meta App
+2. **Webchat** — live now, fully two-way: create a widget in Settings →
+   Channels, paste the embed snippet, replies reach visitors via Realtime
+3. **Email** — inbound webhook + outbound (Resend) wired; connect UI pending
+4. **Facebook / Instagram / WhatsApp** — code complete; requires Meta App
    Review (`pages_messaging`, `instagram_manage_messages`,
    `whatsapp_business_messaging`) before non-test users can connect
-4. **LinkedIn / TikTok posting** — phase 2
+5. **LinkedIn / TikTok posting** — phase 2
 
 ## Plan gating (enforced server-side in `src/lib/plans.ts`)
 
