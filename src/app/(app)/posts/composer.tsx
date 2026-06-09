@@ -1,8 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { addMinutes, format } from "date-fns";
+import { ImagePlus, X } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -12,15 +14,20 @@ import { cn } from "@/lib/utils";
 import { schedulePost } from "./actions";
 import type { Channel } from "@/lib/types";
 
+const MAX_IMAGES = 4;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
 export function Composer({ channels }: { channels: Channel[] }) {
   const router = useRouter();
   const [content, setContent] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
   const [when, setWhen] = useState(
     format(addMinutes(new Date(), 60), "yyyy-MM-dd'T'HH:mm")
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function toggle(id: string) {
     setSelected((prev) =>
@@ -28,14 +35,58 @@ export function Composer({ channels }: { channels: Channel[] }) {
     );
   }
 
+  function pickFiles(picked: FileList | null) {
+    if (!picked) return;
+    const images = Array.from(picked).filter((f) => f.type.startsWith("image/"));
+    if (images.some((f) => f.size > MAX_IMAGE_BYTES)) {
+      setError("Images must be 5MB or smaller");
+      return;
+    }
+    setError(null);
+    setFiles((prev) => [...prev, ...images].slice(0, MAX_IMAGES));
+  }
+
+  async function uploadImages(): Promise<string[]> {
+    if (files.length === 0) return [];
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not signed in");
+
+    const urls: string[] = [];
+    for (const file of files) {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("post-media")
+        .upload(path, file, { contentType: file.type });
+      if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+      const { data } = supabase.storage.from("post-media").getPublicUrl(path);
+      urls.push(data.publicUrl);
+    }
+    return urls;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
+
+    let mediaUrls: string[];
+    try {
+      mediaUrls = await uploadImages();
+    } catch (err) {
+      setBusy(false);
+      setError(err instanceof Error ? err.message : "Image upload failed");
+      return;
+    }
+
     const result = await schedulePost({
       content: content.trim(),
       channelIds: selected,
       scheduledFor: new Date(when).toISOString(),
+      mediaUrls,
     });
     setBusy(false);
     if (!result.ok) {
@@ -44,6 +95,7 @@ export function Composer({ channels }: { channels: Channel[] }) {
     }
     setContent("");
     setSelected([]);
+    setFiles([]);
     router.refresh();
   }
 
@@ -67,6 +119,56 @@ export function Composer({ channels }: { channels: Channel[] }) {
               rows={4}
               required
             />
+
+            {files.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {files.map((file, i) => (
+                  <div key={i} className="relative h-20 w-20">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- local blob preview */}
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt={file.name}
+                      className="h-20 w-20 rounded-lg border border-zinc-200 object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFiles((prev) => prev.filter((_, j) => j !== i))
+                      }
+                      className="absolute -right-1.5 -top-1.5 rounded-full bg-zinc-900 p-0.5 text-white"
+                      aria-label={`Remove ${file.name}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                hidden
+                onChange={(e) => {
+                  pickFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={files.length >= MAX_IMAGES}
+              >
+                <ImagePlus className="h-4 w-4" />
+                Add images ({files.length}/{MAX_IMAGES})
+              </Button>
+            </div>
+
             <div className="flex flex-wrap gap-2">
               {channels.map((ch) => (
                 <button

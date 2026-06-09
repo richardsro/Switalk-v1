@@ -54,6 +54,22 @@ export async function schedulePost(input: {
     };
   }
 
+  // Validate the selected channels: RLS scopes this to the user's own
+  // channels, so a count mismatch means a forged/foreign channel id.
+  const { data: channels, error: channelsError } = await supabase
+    .from("channels")
+    .select("id, type")
+    .in("id", parsed.data.channelIds);
+  if (channelsError || (channels ?? []).length !== parsed.data.channelIds.length) {
+    return { ok: false, error: "One of the selected channels isn't available" };
+  }
+  if (
+    (channels ?? []).some((c) => c.type === "instagram") &&
+    parsed.data.mediaUrls.length === 0
+  ) {
+    return { ok: false, error: "Instagram posts need at least one image" };
+  }
+
   const { data: post, error } = await supabase
     .from("scheduled_posts")
     .insert({

@@ -47,9 +47,16 @@ export const messengerAdapter: ChannelAdapter = {
     return { externalId: json.message_id ?? null };
   },
 
-  async publishPost(channel, content) {
+  async publishPost(channel, content, mediaUrls) {
     const token = requireToken(channel);
-    // Facebook Page feed post (text; photo posts use /photos with url param)
+    if (mediaUrls.length > 0) {
+      // Photo post: Facebook fetches the image from the public URL
+      const json = await graphPost(`${channel.external_id}/photos`, token, {
+        url: mediaUrls[0],
+        message: content,
+      });
+      return { externalId: json.post_id ?? json.id ?? null };
+    }
     const json = await graphPost(`${channel.external_id}/feed`, token, {
       message: content,
     });

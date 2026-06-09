@@ -80,6 +80,13 @@ describe("schedulePost trial enforcement", () => {
     db.reset({
       subscriptions: [{ data: null }],
       profiles: [{ data: { trial_ends_at: FUTURE } }],
+      channels: [
+        {
+          data: [
+            { id: "6f0f1a3c-2c5e-4f0a-9b8e-0d1e2f3a4b5c", type: "facebook" },
+          ],
+        },
+      ],
       scheduled_posts: [
         { count: 0 }, // posts this month
         { data: { id: "post-1" } }, // insert
