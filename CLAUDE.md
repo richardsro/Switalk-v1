@@ -47,11 +47,17 @@ is enforced via `profiles.trial_ends_at` + `getEffectivePlan()` in
 `src/lib/billing.ts` — use it (not raw subscription reads) in any new
 quota-gated action.
 
-Not yet built: media upload for posts (Supabase Storage) — blocks Instagram
-publishing; webchat history replay on widget reopen (broadcasts are lost if
-the widget is closed); sender profile enrichment (Graph lookup);
-LinkedIn/TikTok adapters; follow-up reminders (CRM phase 2); team seats
-(Business plan).
+Media upload (Supabase Storage `post-media` bucket) is live in the composer;
+Instagram publishing is unblocked. Meta API calls are rate-limit-protected
+(`src/lib/rate-limit.ts`, 180/200 hourly budget; over-budget work is queued
+via Inngest). Tests: `npm test` (vitest, fully mocked) covers webhook ingest,
+the publish job, rate limiting and trial expiry; `npm run test:rls` verifies
+RLS against a real Supabase project. Go-live checklist: DEPLOYMENT.md.
+
+Not yet built: webchat history replay on widget reopen (broadcasts are lost
+if the widget is closed); WhatsApp number onboarding UI; email channel
+connect UI; sender profile enrichment (Graph lookup); LinkedIn/TikTok
+adapters; follow-up reminders (CRM phase 2); team seats (Business plan).
 
 ## Business gates (context for prioritisation)
 
