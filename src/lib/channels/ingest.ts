@@ -39,7 +39,7 @@ export async function ingestInboundMessage(
     .maybeSingle();
 
   if (!conversation) {
-    const { data: contact } = await supabase
+    const { data: contact, error: contactError } = await supabase
       .from("contacts")
       .insert({
         user_id: channel.user_id,
@@ -49,6 +49,8 @@ export async function ingestInboundMessage(
       })
       .select("id")
       .single();
+    // Throw so the platform retries the webhook — ingest is idempotent.
+    if (contactError) throw contactError;
 
     const { data: created, error } = await supabase
       .from("conversations")
@@ -82,7 +84,9 @@ export async function ingestInboundMessage(
   if (msgError && msgError.code !== "23505") throw msgError;
   if (msgError?.code === "23505") return;
 
-  await supabase
+  // The message is stored at this point; denormalised metadata failures are
+  // logged (not thrown) so the platform doesn't redeliver a stored message.
+  const { error: convUpdateError } = await supabase
     .from("conversations")
     .update({
       last_message_at: msg.receivedAt.toISOString(),
@@ -91,12 +95,18 @@ export async function ingestInboundMessage(
       status: "open",
     })
     .eq("id", conversation.id);
+  if (convUpdateError) {
+    console.error("ingest: conversation metadata update failed", convUpdateError);
+  }
 
   if (conversation.contact_id) {
-    await supabase
+    const { error: contactUpdateError } = await supabase
       .from("contacts")
       .update({ last_seen_at: msg.receivedAt.toISOString() })
       .eq("id", conversation.contact_id);
+    if (contactUpdateError) {
+      console.error("ingest: contact last_seen update failed", contactUpdateError);
+    }
   }
 }
 

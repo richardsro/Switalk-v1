@@ -3,11 +3,20 @@ import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const PLAN_BY_PRICE = (): Record<string, string> => ({
-  [process.env.STRIPE_PRICE_LITE ?? "price_lite"]: "lite",
-  [process.env.STRIPE_PRICE_PRO ?? "price_pro"]: "pro",
-  [process.env.STRIPE_PRICE_BUSINESS ?? "price_business"]: "business",
-});
+const PLAN_BY_PRICE = (): Record<string, string> => {
+  for (const name of ["STRIPE_PRICE_LITE", "STRIPE_PRICE_PRO", "STRIPE_PRICE_BUSINESS"]) {
+    if (!process.env[name]) {
+      // Misconfiguration silently maps every subscription to "trial" —
+      // make it loud in the logs.
+      console.error(`stripe webhook: ${name} is not set; plan mapping will be wrong`);
+    }
+  }
+  return {
+    [process.env.STRIPE_PRICE_LITE ?? "price_lite"]: "lite",
+    [process.env.STRIPE_PRICE_PRO ?? "price_pro"]: "pro",
+    [process.env.STRIPE_PRICE_BUSINESS ?? "price_business"]: "business",
+  };
+};
 
 export async function POST(req: NextRequest) {
   const stripe = getStripe();
@@ -27,30 +36,38 @@ export async function POST(req: NextRequest) {
 
   const supabase = createAdminClient();
 
-  switch (event.type) {
-    case "checkout.session.completed": {
-      const session = event.data.object;
-      const userId = session.metadata?.user_id;
-      if (!userId || !session.subscription) break;
+  // Failures return 500 so Stripe retries — a swallowed error here means
+  // a paying customer stuck on the wrong plan.
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object;
+        const userId = session.metadata?.user_id;
+        if (!userId || !session.subscription) break;
 
-      const subscription = await stripe.subscriptions.retrieve(
-        session.subscription as string
-      );
-      await upsertSubscription(supabase, userId, subscription);
-      break;
-    }
+        const subscription = await stripe.subscriptions.retrieve(
+          session.subscription as string
+        );
+        await upsertSubscription(supabase, userId, subscription);
+        break;
+      }
 
-    case "customer.subscription.updated":
-    case "customer.subscription.deleted": {
-      const subscription = event.data.object;
-      const { data: row } = await supabase
-        .from("subscriptions")
-        .select("user_id")
-        .eq("stripe_customer_id", subscription.customer as string)
-        .maybeSingle();
-      if (row) await upsertSubscription(supabase, row.user_id, subscription);
-      break;
+      case "customer.subscription.updated":
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object;
+        const { data: row, error } = await supabase
+          .from("subscriptions")
+          .select("user_id")
+          .eq("stripe_customer_id", subscription.customer as string)
+          .maybeSingle();
+        if (error) throw new Error(`subscription lookup failed: ${error.message}`);
+        if (row) await upsertSubscription(supabase, row.user_id, subscription);
+        break;
+      }
     }
+  } catch (err) {
+    console.error("stripe webhook error", event.type, err);
+    return new NextResponse("Webhook handler failed", { status: 500 });
   }
 
   return NextResponse.json({ received: true });
@@ -65,7 +82,7 @@ async function upsertSubscription(
   const plan = PLAN_BY_PRICE()[priceId] ?? "trial";
   const periodEnd = subscription.items.data[0]?.current_period_end;
 
-  await supabase.from("subscriptions").upsert(
+  const { error } = await supabase.from("subscriptions").upsert(
     {
       user_id: userId,
       stripe_customer_id: subscription.customer as string,
@@ -78,4 +95,7 @@ async function upsertSubscription(
     },
     { onConflict: "user_id" }
   );
+  if (error) {
+    throw new Error(`subscription upsert failed for ${userId}: ${error.message}`);
+  }
 }

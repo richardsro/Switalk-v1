@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { META_GRAPH_VERSION } from "@/lib/channels/meta";
 
 /**
  * Kick off the Meta OAuth flow. Scopes cover Messenger, Instagram DM and
@@ -34,6 +35,6 @@ export async function GET() {
   });
 
   return NextResponse.redirect(
-    `https://www.facebook.com/v21.0/dialog/oauth?${params}`
+    `https://www.facebook.com/${META_GRAPH_VERSION}/dialog/oauth?${params}`
   );
 }

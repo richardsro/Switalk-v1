@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-
-const GRAPH = "https://graph.facebook.com/v21.0";
+import { GRAPH } from "@/lib/channels/meta";
 
 /**
  * Meta OAuth callback: exchange the code for a long-lived token, pull the
@@ -55,8 +54,9 @@ export async function GET(req: NextRequest) {
       `${GRAPH}/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${userToken}`
     ).then((r) => r.json());
 
+    let connected = 0;
     for (const page of pages.data ?? []) {
-      await supabase.from("channels").upsert(
+      const { error: fbError } = await supabase.from("channels").upsert(
         {
           user_id: user.id,
           type: "facebook",
@@ -66,6 +66,12 @@ export async function GET(req: NextRequest) {
         },
         { onConflict: "type,external_id", ignoreDuplicates: false }
       );
+      if (fbError) {
+        // e.g. the page is already connected by a different Switalk account
+        console.error(`meta callback: failed to save page ${page.id}`, fbError);
+        continue;
+      }
+      connected++;
 
       // Subscribe the page to our webhook events
       await fetch(`${GRAPH}/${page.id}/subscribed_apps`, {
@@ -78,7 +84,7 @@ export async function GET(req: NextRequest) {
       });
 
       if (page.instagram_business_account?.id) {
-        await supabase.from("channels").upsert(
+        const { error: igError } = await supabase.from("channels").upsert(
           {
             user_id: user.id,
             type: "instagram",
@@ -89,7 +95,14 @@ export async function GET(req: NextRequest) {
           },
           { onConflict: "type,external_id", ignoreDuplicates: false }
         );
+        if (igError) {
+          console.error(`meta callback: failed to save IG for page ${page.id}`, igError);
+        }
       }
+    }
+
+    if ((pages.data ?? []).length > 0 && connected === 0) {
+      return fail("These pages are already connected to another account");
     }
 
     return NextResponse.redirect(

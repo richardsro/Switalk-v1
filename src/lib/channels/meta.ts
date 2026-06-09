@@ -1,7 +1,10 @@
 import type { Channel } from "@/lib/types";
 import type { ChannelAdapter } from "./types";
 
-const GRAPH = "https://graph.facebook.com/v21.0";
+// Single source of truth for the Graph API version (also used by the
+// OAuth connect/callback routes).
+export const META_GRAPH_VERSION = "v21.0";
+export const GRAPH = `https://graph.facebook.com/${META_GRAPH_VERSION}`;
 
 async function graphPost(path: string, token: string, body: unknown) {
   const res = await fetch(`${GRAPH}/${path}`, {

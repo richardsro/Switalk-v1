@@ -24,6 +24,12 @@ export async function schedulePost(input: {
   const parsed = postSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid post" };
 
+  // Allow small clock skew, but reject genuinely past schedules — Inngest
+  // would otherwise fire them immediately, surprising the user.
+  if (new Date(parsed.data.scheduledFor).getTime() < Date.now() - 2 * 60_000) {
+    return { ok: false, error: "That time is in the past — pick a future time" };
+  }
+
   const supabase = createClient();
   const {
     data: { user },
@@ -67,10 +73,14 @@ export async function schedulePost(input: {
     data: { postId: post.id, scheduledFor: parsed.data.scheduledFor },
   });
 
-  await supabase
+  const { error: jobIdError } = await supabase
     .from("scheduled_posts")
     .update({ inngest_job_id: ids[0] ?? null })
     .eq("id", post.id);
+  if (jobIdError) {
+    // Job is queued and will run; only the audit reference is missing.
+    console.error("schedulePost: failed to store inngest_job_id", jobIdError);
+  }
 
   revalidatePath("/posts");
   return { ok: true };
@@ -85,10 +95,14 @@ export async function cancelPost(postId: string) {
     .single();
   if (!post || post.status !== "pending") return;
 
-  await supabase
+  const { error } = await supabase
     .from("scheduled_posts")
     .update({ status: "cancelled" })
     .eq("id", postId);
+  if (error) {
+    console.error("cancelPost: status update failed", error);
+    return;
+  }
   await inngest.send({ name: "post/cancel", data: { postId } });
   revalidatePath("/posts");
 }

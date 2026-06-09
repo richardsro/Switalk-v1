@@ -2,13 +2,15 @@
  * Server-side Supabase Realtime broadcast via the HTTP API — no websocket
  * connection needed. Used to push inbox replies out to webchat visitors.
  */
+import { requireEnv } from "@/lib/env";
+
 export async function broadcast(
   topic: string,
   event: string,
   payload: unknown
 ): Promise<void> {
-  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/realtime/v1/api/broadcast`;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const url = `${requireEnv("NEXT_PUBLIC_SUPABASE_URL")}/realtime/v1/api/broadcast`;
+  const key = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
 
   const res = await fetch(url, {
     method: "POST",

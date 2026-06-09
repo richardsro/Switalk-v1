@@ -37,6 +37,11 @@ export async function sendReply(input: {
   const channel = (conversation as Conversation & { channels: Channel })
     .channels;
 
+  if (!conversation.external_id) {
+    // Without a platform-side recipient id there is nowhere to send this.
+    return { ok: false, error: "This conversation has no reply address" };
+  }
+
   let externalId: string | null = null;
   let queuedUntil: Date | null = null;
   try {
@@ -106,13 +111,17 @@ export async function sendReply(input: {
     });
   }
 
-  await supabase
+  const { error: convError } = await supabase
     .from("conversations")
     .update({
       last_message_at: new Date().toISOString(),
       last_message_preview: parsed.data.content.slice(0, 140),
     })
     .eq("id", conversation.id);
+  if (convError) {
+    // Message already sent + stored; stale preview is cosmetic. Log only.
+    console.error("sendReply: conversation preview update failed", convError);
+  }
 
   revalidatePath("/inbox");
   return { ok: true, message: inserted as Message };
@@ -120,14 +129,17 @@ export async function sendReply(input: {
 
 export async function markConversationRead(conversationId: string) {
   const supabase = createClient();
-  await supabase
+  const { error: msgError } = await supabase
     .from("messages")
     .update({ is_read: true })
     .eq("conversation_id", conversationId)
     .eq("is_read", false);
-  await supabase
+  const { error: convError } = await supabase
     .from("conversations")
     .update({ unread_count: 0 })
     .eq("id", conversationId);
+  if (msgError || convError) {
+    console.error("markConversationRead failed", msgError ?? convError);
+  }
   revalidatePath("/inbox");
 }

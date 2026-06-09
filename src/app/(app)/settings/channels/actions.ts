@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { canAddChannel } from "@/lib/plans";
 import { getEffectivePlan, TRIAL_EXPIRED_ERROR } from "@/lib/billing";
+import { requireEnv } from "@/lib/env";
 
 async function assertChannelQuota(): Promise<
   { ok: true; userId: string } | { ok: false; error: string }
@@ -50,7 +51,9 @@ export async function connectTelegram(
   if (!me.ok) return { ok: false, error: "Telegram rejected this token" };
 
   const botId = String(me.result.id);
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  // requireEnv: a missing app URL would register the Telegram webhook as
+  // "undefined/api/..." and silently drop every message.
+  const appUrl = requireEnv("NEXT_PUBLIC_APP_URL");
   const webhook = await fetch(
     `https://api.telegram.org/bot${token}/setWebhook`,
     {
@@ -112,6 +115,25 @@ export async function createWebchat(
 
 export async function removeChannel(channelId: string) {
   const supabase = createClient();
-  await supabase.from("channels").delete().eq("id", channelId);
+
+  // Best effort: deregister the Telegram webhook so the bot doesn't keep
+  // POSTing updates that we then drop as "unconnected".
+  const { data: channel } = await supabase
+    .from("channels")
+    .select("type, access_token")
+    .eq("id", channelId)
+    .maybeSingle();
+  if (channel?.type === "telegram" && channel.access_token) {
+    await fetch(
+      `https://api.telegram.org/bot${channel.access_token}/deleteWebhook`,
+      { method: "POST" }
+    ).catch((err) => console.error("removeChannel: deleteWebhook failed", err));
+  }
+
+  const { error } = await supabase
+    .from("channels")
+    .delete()
+    .eq("id", channelId);
+  if (error) console.error("removeChannel: delete failed", error);
   revalidatePath("/settings/channels");
 }
