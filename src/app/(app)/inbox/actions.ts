@@ -5,6 +5,8 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getAdapter } from "@/lib/channels";
 import { broadcast, webchatTopic } from "@/lib/realtime";
+import { inngest } from "@/lib/inngest/client";
+import { isMetaChannel, trackMetaCall } from "@/lib/rate-limit";
 import type { Channel, Conversation, Message } from "@/lib/types";
 
 const replySchema = z.object({
@@ -36,8 +38,18 @@ export async function sendReply(input: {
     .channels;
 
   let externalId: string | null = null;
+  let queuedUntil: Date | null = null;
   try {
-    if (channel.type === "webchat") {
+    // Approaching Meta's hourly API budget → save the reply now, deliver
+    // it via the send-queued-message job when the next window opens.
+    if (isMetaChannel(channel.type)) {
+      const usage = await trackMetaCall(supabase, user.id);
+      if (!usage.allowed) queuedUntil = usage.resetAt;
+    }
+
+    if (queuedUntil) {
+      // external send deferred — handled after the row is inserted below
+    } else if (channel.type === "webchat") {
       // Delivered to the visitor's open widget via Realtime broadcast
       await broadcast(
         webchatTopic(channel.external_id!, conversation.external_id!),
@@ -71,11 +83,27 @@ export async function sendReply(input: {
       direction: "outbound",
       content: parsed.data.content,
       is_read: true,
+      raw: queuedUntil
+        ? { queued: true, send_after: queuedUntil.toISOString() }
+        : null,
     })
     .select("*")
     .single();
   if (insertError || !inserted) {
     return { ok: false, error: "Sent, but failed to save locally" };
+  }
+
+  if (queuedUntil) {
+    await inngest.send({
+      name: "message/send.queued",
+      data: {
+        messageId: inserted.id,
+        channelId: channel.id,
+        recipient: conversation.external_id,
+        content: parsed.data.content,
+        sendAfter: queuedUntil.toISOString(),
+      },
+    });
   }
 
   await supabase

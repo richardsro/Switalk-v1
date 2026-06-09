@@ -1,6 +1,8 @@
+import { RetryAfterError } from "inngest";
 import { inngest } from "@/lib/inngest/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdapter } from "@/lib/channels";
+import { isMetaChannel, trackMetaCall } from "@/lib/rate-limit";
 import type { Channel, ScheduledPost } from "@/lib/types";
 
 /**
@@ -70,6 +72,17 @@ export async function publishPostHandler({
         .single();
       if (!channel) {
         return { channelId, error: "channel not found" };
+      }
+      // Approaching Meta's hourly budget: queue this publish for the next
+      // window. RetryAfterError makes Inngest re-run this step at resetAt.
+      if (isMetaChannel((channel as Channel).type)) {
+        const usage = await trackMetaCall(supabase, post.user_id);
+        if (!usage.allowed) {
+          throw new RetryAfterError(
+            `Meta API budget reached (${usage.count} calls this hour) — queued`,
+            usage.resetAt
+          );
+        }
       }
       try {
         const adapter = getAdapter((channel as Channel).type);
