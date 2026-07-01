@@ -5,7 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
+import { Logo } from "@/components/logo";
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -42,17 +43,17 @@ function LoginForm() {
   }
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-zinc-50 p-4">
+    <main className="flex min-h-dvh items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Switalk</CardTitle>
-          <CardDescription>
+        <CardHeader className="items-center text-center">
+          <Logo className="text-3xl" />
+          <CardDescription className="mt-1">
             One inbox for every conversation. Sign in to continue.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {sent ? (
-            <p className="text-center text-sm text-zinc-600">
+            <p className="text-center text-sm text-gray-600">
               Check your email — we sent you a magic sign-in link. ✉️
             </p>
           ) : (
@@ -60,10 +61,10 @@ function LoginForm() {
               <Button variant="outline" onClick={signInWithGoogle}>
                 Continue with Google
               </Button>
-              <div className="flex items-center gap-3 text-xs text-zinc-400">
-                <div className="h-px flex-1 bg-zinc-200" />
+              <div className="flex items-center gap-3 text-xs text-gray-400">
+                <div className="h-px flex-1 bg-gray-200" />
                 or
-                <div className="h-px flex-1 bg-zinc-200" />
+                <div className="h-px flex-1 bg-gray-200" />
               </div>
               <form onSubmit={signInWithEmail} className="flex flex-col gap-3">
                 <Input
@@ -78,7 +79,7 @@ function LoginForm() {
                 </Button>
               </form>
               {error && <p className="text-sm text-red-600">{error}</p>}
-              <p className="text-center text-xs text-zinc-400">
+              <p className="text-center text-xs text-gray-400">
                 14-day free trial · No credit card required
               </p>
             </>

@@ -25,7 +25,7 @@ export function PostList({
 }) {
   if (posts.length === 0) {
     return (
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-gray-500">
         Nothing scheduled yet — your queue will appear here.
       </p>
     );
@@ -43,7 +43,7 @@ export function PostList({
               <Badge color={STATUS_COLOR[post.status]}>{post.status}</Badge>
             </div>
             <div className="mt-3 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-zinc-500">
+              <div className="flex items-center gap-2 text-xs text-gray-500">
                 <span className="flex gap-1.5">
                   {post.channel_ids.map((id) => {
                     const ch = channelById.get(id);

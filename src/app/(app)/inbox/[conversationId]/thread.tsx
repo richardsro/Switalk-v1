@@ -83,7 +83,7 @@ export function ConversationThread({
 
   return (
     <>
-      <div className="flex-1 space-y-3 overflow-y-auto bg-zinc-50 p-4">
+      <div className="flex-1 space-y-3 overflow-y-auto bg-white p-4">
         {messages.map((m) => (
           <div
             key={m.id}
@@ -94,10 +94,10 @@ export function ConversationThread({
           >
             <div
               className={cn(
-                "max-w-[80%] rounded-2xl px-4 py-2 text-sm",
+                "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm",
                 m.direction === "outbound"
-                  ? "rounded-br-sm bg-indigo-600 text-white"
-                  : "rounded-bl-sm border border-zinc-200 bg-white text-zinc-900"
+                  ? "rounded-br-md bg-brand-500 text-white"
+                  : "rounded-bl-md bg-gray-100 text-gray-900"
               )}
             >
               <p className="whitespace-pre-wrap break-words">{m.content}</p>
@@ -105,8 +105,8 @@ export function ConversationThread({
                 className={cn(
                   "mt-1 text-[10px]",
                   m.direction === "outbound"
-                    ? "text-indigo-200"
-                    : "text-zinc-400"
+                    ? "text-orange-100"
+                    : "text-gray-400"
                 )}
               >
                 {format(new Date(m.received_at), "HH:mm")}
@@ -119,7 +119,7 @@ export function ConversationThread({
 
       <form
         onSubmit={handleSend}
-        className="border-t border-zinc-200 bg-white p-3"
+        className="border-t border-gray-200 bg-white p-3"
       >
         {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
         <div className="flex items-end gap-2">

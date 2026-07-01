@@ -33,6 +33,18 @@ export const CHANNEL_LABELS: Record<ChannelType, string> = {
   tiktok: "TikTok",
 };
 
+/** Solid indicator-dot class per platform — colors from the marketing site. */
+export const CHANNEL_DOT_CLASS: Record<ChannelType, string> = {
+  email: "bg-channel-email",
+  instagram: "bg-channel-instagram",
+  whatsapp: "bg-channel-whatsapp",
+  facebook: "bg-channel-messenger",
+  telegram: "bg-channel-telegram",
+  webchat: "bg-channel-webchat",
+  linkedin: "bg-sky-700",
+  tiktok: "bg-gray-900",
+};
+
 export function ChannelIcon({
   type,
   className = "h-4 w-4",

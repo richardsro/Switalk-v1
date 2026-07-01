@@ -18,8 +18,8 @@ export default async function ChannelsPage({
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
       <header className="mb-6">
-        <h1 className="text-xl font-bold">Channels</h1>
-        <p className="text-sm text-zinc-500">
+        <h1 className="text-xl font-extrabold tracking-tight text-gray-900">Channels</h1>
+        <p className="text-sm text-gray-500">
           Connect the places your customers message you.
         </p>
       </header>

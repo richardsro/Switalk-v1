@@ -18,14 +18,14 @@ export default async function ContactsPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
       <header className="mb-6">
-        <h1 className="text-xl font-bold">Contacts</h1>
-        <p className="text-sm text-zinc-500">
+        <h1 className="text-xl font-extrabold tracking-tight text-gray-900">Contacts</h1>
+        <p className="text-sm text-gray-500">
           One card per person — every platform, every conversation.
         </p>
       </header>
 
       {contacts.length === 0 ? (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-gray-500">
           Contacts are created automatically when someone messages you.
         </p>
       ) : (
@@ -33,19 +33,19 @@ export default async function ContactsPage() {
           {contacts.map((contact) => (
             <Card key={contact.id}>
               <CardContent className="flex items-center gap-3 p-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 font-semibold text-indigo-700">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-500 font-bold text-white">
                   {contact.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{contact.name}</p>
-                  <p className="truncate text-xs text-zinc-500">
+                  <p className="truncate font-semibold text-gray-900">{contact.name}</p>
+                  <p className="truncate text-xs text-gray-500">
                     {Object.entries(contact.handles)
                       .map(([platform, handle]) => `${platform}: ${handle}`)
                       .join(" · ") || "No linked handles"}
                   </p>
                 </div>
                 {contact.last_seen_at && (
-                  <span className="shrink-0 text-xs text-zinc-400">
+                  <span className="shrink-0 text-xs text-gray-400">
                     {formatDistanceToNow(new Date(contact.last_seen_at), {
                       addSuffix: true,
                     })}

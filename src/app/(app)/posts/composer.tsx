@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChannelIcon, CHANNEL_LABELS } from "@/components/channel-icon";
+import { CHANNEL_DOT_CLASS, CHANNEL_LABELS } from "@/components/channel-icon";
 import { cn } from "@/lib/utils";
 import { schedulePost } from "./actions";
 import type { Channel } from "@/lib/types";
@@ -106,7 +106,7 @@ export function Composer({ channels }: { channels: Channel[] }) {
       </CardHeader>
       <CardContent>
         {channels.length === 0 ? (
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-gray-500">
             Connect a posting channel (Facebook or Instagram) in Settings →
             Channels to start scheduling.
           </p>
@@ -128,14 +128,14 @@ export function Composer({ channels }: { channels: Channel[] }) {
                     <img
                       src={URL.createObjectURL(file)}
                       alt={file.name}
-                      className="h-20 w-20 rounded-lg border border-zinc-200 object-cover"
+                      className="h-20 w-20 rounded-xl border border-gray-200 object-cover"
                     />
                     <button
                       type="button"
                       onClick={() =>
                         setFiles((prev) => prev.filter((_, j) => j !== i))
                       }
-                      className="absolute -right-1.5 -top-1.5 rounded-full bg-zinc-900 p-0.5 text-white"
+                      className="absolute -right-1.5 -top-1.5 rounded-full bg-gray-900 p-0.5 text-white"
                       aria-label={`Remove ${file.name}`}
                     >
                       <X className="h-3 w-3" />
@@ -176,13 +176,18 @@ export function Composer({ channels }: { channels: Channel[] }) {
                   type="button"
                   onClick={() => toggle(ch.id)}
                   className={cn(
-                    "flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm",
+                    "flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold",
                     selected.includes(ch.id)
-                      ? "border-indigo-600 bg-indigo-50 text-indigo-700"
-                      : "border-zinc-300 text-zinc-600 hover:bg-zinc-50"
+                      ? "border-brand-500 bg-brand-50 text-brand-700"
+                      : "border-gray-300 text-gray-600 hover:bg-gray-50"
                   )}
                 >
-                  <ChannelIcon type={ch.type} className="h-3.5 w-3.5" />
+                  <span
+                    className={cn(
+                      "h-2 w-2 rounded-full",
+                      CHANNEL_DOT_CLASS[ch.type]
+                    )}
+                  />
                   {ch.name || CHANNEL_LABELS[ch.type]}
                 </button>
               ))}

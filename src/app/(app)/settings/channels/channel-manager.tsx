@@ -73,13 +73,13 @@ export function ChannelManager({
   return (
     <div className="flex flex-col gap-6">
       {flashConnected && (
-        <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">
+        <p className="rounded-xl bg-green-50 p-3 text-sm font-semibold text-green-700">
           {CHANNEL_LABELS[flashConnected as Channel["type"]] ?? flashConnected}{" "}
           connected 🎉
         </p>
       )}
       {error && (
-        <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
+        <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>
       )}
 
       {channels.length > 0 && (
@@ -90,14 +90,14 @@ export function ChannelManager({
           <CardContent className="flex flex-col gap-3">
             {channels.map((ch) => (
               <div key={ch.id} className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-brand-600">
                   <ChannelIcon type={ch.type} />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium">
                     {ch.name || CHANNEL_LABELS[ch.type]}
                   </p>
-                  <p className="text-xs text-zinc-500">{CHANNEL_LABELS[ch.type]}</p>
+                  <p className="text-xs text-gray-500">{CHANNEL_LABELS[ch.type]}</p>
                 </div>
                 <Badge color={ch.status === "active" ? "green" : "red"}>
                   {ch.status}
@@ -178,9 +178,9 @@ export function ChannelManager({
           </form>
 
           {webchatChannels.map((ch) => (
-            <div key={ch.id} className="rounded-lg bg-zinc-50 p-3">
+            <div key={ch.id} className="rounded-lg bg-gray-50 p-3">
               <p className="mb-1 text-sm font-medium">{ch.name}</p>
-              <code className="block overflow-x-auto whitespace-nowrap rounded bg-zinc-900 p-2 text-xs text-zinc-100">
+              <code className="block overflow-x-auto whitespace-nowrap rounded bg-gray-950 p-2 text-xs text-gray-100">
                 {embedSnippet(appUrl, ch.external_id ?? "")}
               </code>
               <Button

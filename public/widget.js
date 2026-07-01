@@ -16,16 +16,16 @@
     localStorage.setItem("switalk_visitor", visitorId);
   }
 
-  var INDIGO = "#4f46e5";
+  var BRAND = "#F97316";
   var open = false;
 
   // --- UI -------------------------------------------------------------
-  var bubble = el("button", "position:fixed;bottom:20px;right:20px;width:56px;height:56px;border-radius:50%;border:none;background:" + INDIGO + ";color:#fff;font-size:24px;cursor:pointer;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,.2)");
+  var bubble = el("button", "position:fixed;bottom:20px;right:20px;width:56px;height:56px;border-radius:50%;border:none;background:" + BRAND + ";color:#fff;font-size:24px;cursor:pointer;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,.2)");
   bubble.textContent = "💬";
 
   var panel = el("div", "position:fixed;bottom:88px;right:20px;width:320px;max-width:calc(100vw - 40px);height:420px;background:#fff;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.2);display:none;flex-direction:column;overflow:hidden;z-index:99999;font-family:system-ui,sans-serif");
 
-  var header = el("div", "background:" + INDIGO + ";color:#fff;padding:12px 16px;font-weight:600;font-size:14px");
+  var header = el("div", "background:" + BRAND + ";color:#fff;padding:12px 16px;font-weight:600;font-size:14px");
   header.textContent = "Chat with us";
 
   var log = el("div", "flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;background:#fafafa");
@@ -33,7 +33,7 @@
   var form = el("form", "display:flex;gap:8px;padding:10px;border-top:1px solid #eee;background:#fff");
   var input = el("input", "flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:14px;outline:none");
   input.placeholder = "Type a message…";
-  var sendBtn = el("button", "background:" + INDIGO + ";color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:14px;cursor:pointer");
+  var sendBtn = el("button", "background:" + BRAND + ";color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:14px;cursor:pointer");
   sendBtn.type = "submit";
   sendBtn.textContent = "Send";
 
@@ -62,7 +62,7 @@
     var msg = el("div",
       "max-width:80%;padding:8px 12px;border-radius:14px;font-size:14px;line-height:1.4;white-space:pre-wrap;word-break:break-word;" +
       (mine
-        ? "background:" + INDIGO + ";color:#fff;border-bottom-right-radius:4px"
+        ? "background:" + BRAND + ";color:#fff;border-bottom-right-radius:4px"
         : "background:#fff;border:1px solid #e5e5e5;color:#222;border-bottom-left-radius:4px"));
     msg.textContent = text;
     row.appendChild(msg);

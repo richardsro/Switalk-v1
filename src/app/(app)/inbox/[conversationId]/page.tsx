@@ -2,7 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { ChannelIcon, CHANNEL_LABELS } from "@/components/channel-icon";
+import {
+  ChannelIcon,
+  CHANNEL_DOT_CLASS,
+  CHANNEL_LABELS,
+} from "@/components/channel-icon";
 import { ConversationThread } from "./thread";
 import type { Channel, Contact, Message } from "@/lib/types";
 
@@ -35,19 +39,24 @@ export default async function ConversationPage({
 
   return (
     <div className="mx-auto flex h-dvh max-w-2xl flex-col md:h-screen">
-      <header className="flex items-center gap-3 border-b border-zinc-200 bg-white px-4 py-3">
-        <Link href="/inbox" className="text-zinc-500 hover:text-zinc-900">
+      <header className="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3">
+        <Link href="/inbox" className="text-gray-500 hover:text-gray-900">
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-500 text-white">
           <ChannelIcon type={channel.type} />
         </div>
         <div>
-          <p className="font-semibold leading-tight">
+          <p className="font-bold leading-tight text-gray-900">
             {contact?.name ?? "Unknown"}
           </p>
-          <p className="text-xs text-zinc-500">
-            {CHANNEL_LABELS[channel.type]} · {channel.name}
+          <p className="flex items-center gap-1.5 text-xs text-gray-500">
+            <span
+              className={`h-2 w-2 rounded-full ${CHANNEL_DOT_CLASS[channel.type]}`}
+            />
+            <span className="font-semibold">{CHANNEL_LABELS[channel.type]}</span>
+            {" · "}
+            {channel.name}
           </p>
         </div>
       </header>
