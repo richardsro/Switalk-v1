@@ -53,9 +53,12 @@ Instagram publishing is unblocked. Meta API calls are rate-limit-protected
 via Inngest). Tests: `npm test` (vitest, fully mocked) covers webhook ingest,
 the publish job, rate limiting and trial expiry; `npm run test:rls` verifies
 RLS against a real Supabase project. Go-live checklist: DEPLOYMENT.md.
+WhatsApp numbers connect via the Meta OAuth callback (WABA ids from
+`debug_token` granular scopes → app subscribed to WABA webhooks → each phone
+number upserted as a `whatsapp` channel keyed by phone number id).
 
 Not yet built: webchat history replay on widget reopen (broadcasts are lost
-if the widget is closed); WhatsApp number onboarding UI; email channel
+if the widget is closed); email channel
 connect UI; sender profile enrichment (Graph lookup); LinkedIn/TikTok
 adapters; follow-up reminders (CRM phase 2); team seats (Business plan).
 

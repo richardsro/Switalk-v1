@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { GRAPH } from "@/lib/channels/meta";
 
 /**
  * Meta OAuth callback: exchange the code for a long-lived token, pull the
- * user's Pages, and connect each Page (+ linked Instagram account) as a
- * channel. WhatsApp number connection is finished in settings (phase 1.5).
+ * user's Pages, and connect each Page (+ linked Instagram account) and each
+ * WhatsApp Business number the user granted access to as a channel.
  */
 export async function GET(req: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -101,15 +102,97 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    if ((pages.data ?? []).length > 0 && connected === 0) {
-      return fail("These pages are already connected to another account");
+    // WhatsApp discovery must not sink the whole callback — pages may have
+    // connected fine even if the WABA lookup fails.
+    let whatsapp = { found: 0, connected: 0 };
+    try {
+      whatsapp = await connectWhatsApp(supabase, user.id, userToken);
+    } catch (err) {
+      console.error("meta callback: whatsapp connect failed", err);
+    }
+
+    const found = (pages.data ?? []).length + whatsapp.found;
+    if (found > 0 && connected + whatsapp.connected === 0) {
+      return fail(
+        "These channels are already connected to another account"
+      );
     }
 
     return NextResponse.redirect(
-      `${appUrl}/settings/channels?connected=facebook`
+      `${appUrl}/settings/channels?connected=${
+        connected > 0 ? "facebook" : "whatsapp"
+      }`
     );
   } catch (err) {
     console.error("meta oauth callback error", err);
     return fail("Could not connect Meta account");
   }
+}
+
+/**
+ * Find the WhatsApp Business Accounts the user granted during OAuth (via the
+ * token's granular scopes), subscribe our app to their webhooks, and save
+ * each phone number as a `whatsapp` channel. `external_id` is the phone
+ * number id — the key both the webhook ingest and the send adapter use.
+ */
+async function connectWhatsApp(
+  supabase: SupabaseClient,
+  userId: string,
+  userToken: string
+): Promise<{ found: number; connected: number }> {
+  const appToken = `${process.env.META_APP_ID}|${process.env.META_APP_SECRET}`;
+  const debug = await fetch(
+    `${GRAPH}/debug_token?` +
+      new URLSearchParams({ input_token: userToken, access_token: appToken })
+  ).then((r) => r.json());
+
+  const wabaIds: string[] =
+    debug.data?.granular_scopes?.find(
+      (s: { scope: string; target_ids?: string[] }) =>
+        s.scope === "whatsapp_business_management"
+    )?.target_ids ?? [];
+  if (wabaIds.length === 0) return { found: 0, connected: 0 };
+
+  let found = 0;
+  let connected = 0;
+  for (const wabaId of wabaIds) {
+    // Without this subscription Meta never delivers the WABA's messages to
+    // our webhook, so treat failure as fatal for this WABA.
+    const sub = await fetch(`${GRAPH}/${wabaId}/subscribed_apps`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${userToken}` },
+    }).then((r) => r.json());
+    if (!sub.success) {
+      console.error(`meta callback: waba ${wabaId} subscribe failed`, sub);
+      continue;
+    }
+
+    const numbers = await fetch(
+      `${GRAPH}/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name&access_token=${userToken}`
+    ).then((r) => r.json());
+
+    for (const phone of numbers.data ?? []) {
+      found++;
+      const { error } = await supabase.from("channels").upsert(
+        {
+          user_id: userId,
+          type: "whatsapp",
+          name: phone.verified_name
+            ? `${phone.verified_name} (${phone.display_phone_number})`
+            : phone.display_phone_number,
+          external_id: String(phone.id),
+          access_token: userToken,
+          metadata: { waba_id: wabaId },
+        },
+        { onConflict: "type,external_id", ignoreDuplicates: false }
+      );
+      if (error) {
+        // e.g. the number is already connected by a different Switalk account
+        console.error(`meta callback: failed to save number ${phone.id}`, error);
+        continue;
+      }
+      connected++;
+    }
+  }
+  return { found, connected };
 }
