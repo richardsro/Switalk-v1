@@ -79,6 +79,10 @@ export class FakeDb {
       },
       auth: {
         getUser: () => Promise.resolve({ data: { user: db.user } }),
+        admin: {
+          getUserById: () =>
+            Promise.resolve({ data: { user: db.user }, error: null }),
+        },
       },
     };
   }

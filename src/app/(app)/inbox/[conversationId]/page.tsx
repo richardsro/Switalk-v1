@@ -8,6 +8,7 @@ import {
   CHANNEL_LABELS,
 } from "@/components/channel-icon";
 import { ConversationThread } from "./thread";
+import { ReminderMenu } from "./reminder-menu";
 import type { Channel, Contact, Message } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -27,12 +28,22 @@ export default async function ConversationPage({
 
   if (!conversation) notFound();
 
-  const { data: messages } = await supabase
-    .from("messages")
-    .select("*")
-    .eq("conversation_id", params.conversationId)
-    .order("received_at", { ascending: true })
-    .limit(200);
+  const [{ data: messages }, { data: pendingReminder }] = await Promise.all([
+    supabase
+      .from("messages")
+      .select("*")
+      .eq("conversation_id", params.conversationId)
+      .order("received_at", { ascending: true })
+      .limit(200),
+    supabase
+      .from("reminders")
+      .select("id, remind_at")
+      .eq("conversation_id", params.conversationId)
+      .eq("status", "pending")
+      .order("remind_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   const channel = conversation.channels as Channel;
   const contact = conversation.contacts as Contact | null;
@@ -59,6 +70,10 @@ export default async function ConversationPage({
             {channel.name}
           </p>
         </div>
+        <ReminderMenu
+          conversationId={conversation.id}
+          pending={pendingReminder ?? null}
+        />
       </header>
 
       <ConversationThread

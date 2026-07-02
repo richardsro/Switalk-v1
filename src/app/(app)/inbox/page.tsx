@@ -13,6 +13,7 @@ interface ConversationRow {
   last_message_at: string | null;
   last_message_preview: string | null;
   unread_count: number;
+  reminder_due: boolean;
   channels: { type: ChannelType; name: string } | null;
   contacts: { name: string } | null;
 }
@@ -28,7 +29,7 @@ export default async function InboxPage() {
   const { data } = await supabase
     .from("conversations")
     .select(
-      "id, last_message_at, last_message_preview, unread_count, channels(type, name), contacts(name)"
+      "id, last_message_at, last_message_preview, unread_count, reminder_due, channels(type, name), contacts(name)"
     )
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .limit(100);
@@ -81,7 +82,10 @@ export default async function InboxPage() {
                     >
                       {c.contacts?.name ?? "Unknown"}
                     </p>
-                    {c.unread_count > 0 && <Badge>{c.unread_count}</Badge>}
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      {c.reminder_due && <Badge>Follow up</Badge>}
+                      {c.unread_count > 0 && <Badge>{c.unread_count}</Badge>}
+                    </span>
                   </div>
                   {c.channels && (
                     <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-400">

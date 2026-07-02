@@ -134,12 +134,106 @@ export async function markConversationRead(conversationId: string) {
     .update({ is_read: true })
     .eq("conversation_id", conversationId)
     .eq("is_read", false);
+  // Opening the thread also clears a fired reminder's flag.
   const { error: convError } = await supabase
     .from("conversations")
-    .update({ unread_count: 0 })
+    .update({ unread_count: 0, reminder_due: false })
     .eq("id", conversationId);
   if (msgError || convError) {
     console.error("markConversationRead failed", msgError ?? convError);
   }
+  revalidatePath("/inbox");
+}
+
+const reminderSchema = z.object({
+  conversationId: z.string().uuid(),
+  remindAt: z.string().datetime(),
+});
+
+/**
+ * Schedule a follow-up reminder for a conversation. At most one pending
+ * reminder per conversation — setting a new one replaces the old.
+ */
+export async function setReminder(input: {
+  conversationId: string;
+  remindAt: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const parsed = reminderSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Invalid reminder" };
+
+  // Same clock-skew tolerance as schedulePost.
+  if (new Date(parsed.data.remindAt).getTime() < Date.now() - 2 * 60_000) {
+    return { ok: false, error: "That time is in the past — pick a future time" };
+  }
+
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+
+  // RLS scopes this to the user's own conversations.
+  const { data: conversation } = await supabase
+    .from("conversations")
+    .select("id")
+    .eq("id", parsed.data.conversationId)
+    .single();
+  if (!conversation) return { ok: false, error: "Conversation not found" };
+
+  // Replace any existing pending reminder for this conversation.
+  const { data: existing } = await supabase
+    .from("reminders")
+    .select("id")
+    .eq("conversation_id", parsed.data.conversationId)
+    .eq("status", "pending");
+  for (const old of existing ?? []) {
+    await supabase
+      .from("reminders")
+      .update({ status: "cancelled" })
+      .eq("id", old.id);
+    await inngest.send({
+      name: "reminder/cancel",
+      data: { reminderId: old.id },
+    });
+  }
+
+  const { data: reminder, error } = await supabase
+    .from("reminders")
+    .insert({
+      user_id: user.id,
+      conversation_id: parsed.data.conversationId,
+      remind_at: parsed.data.remindAt,
+    })
+    .select("id")
+    .single();
+  if (error || !reminder) return { ok: false, error: "Could not save reminder" };
+
+  await inngest.send({
+    name: "reminder/set",
+    data: { reminderId: reminder.id, remindAt: parsed.data.remindAt },
+  });
+
+  revalidatePath("/inbox");
+  return { ok: true };
+}
+
+export async function cancelReminder(reminderId: string) {
+  const supabase = createClient();
+  const { data: reminder } = await supabase
+    .from("reminders")
+    .select("id, status")
+    .eq("id", reminderId)
+    .single();
+  if (!reminder || reminder.status !== "pending") return;
+
+  const { error } = await supabase
+    .from("reminders")
+    .update({ status: "cancelled" })
+    .eq("id", reminderId);
+  if (error) {
+    console.error("cancelReminder: status update failed", error);
+    return;
+  }
+  await inngest.send({ name: "reminder/cancel", data: { reminderId } });
   revalidatePath("/inbox");
 }
