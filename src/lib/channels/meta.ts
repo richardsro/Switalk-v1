@@ -24,6 +24,19 @@ async function graphPost(path: string, token: string, body: unknown) {
   return json;
 }
 
+export async function graphGet(path: string, token: string) {
+  const res = await fetch(`${GRAPH}/${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(
+      `Meta API error (${res.status}): ${JSON.stringify(json.error ?? json)}`
+    );
+  }
+  return json;
+}
+
 function requireToken(channel: Channel): string {
   if (!channel.access_token) {
     throw new Error(`Channel ${channel.id} has no access token`);

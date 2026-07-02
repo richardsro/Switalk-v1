@@ -2,6 +2,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { ChannelType } from "@/lib/types";
 import type { NormalizedInboundMessage } from "./types";
 
+export interface IngestResult {
+  contactId: string | null;
+  /** True when this message created the contact (an unknown sender). */
+  contactCreated: boolean;
+}
+
 /**
  * Persist a normalised inbound message: resolve the channel, upsert the
  * contact and conversation, insert the message. Called from webhook routes
@@ -12,7 +18,7 @@ import type { NormalizedInboundMessage } from "./types";
 export async function ingestInboundMessage(
   channelType: ChannelType,
   msg: NormalizedInboundMessage
-): Promise<void> {
+): Promise<IngestResult> {
   const supabase = createAdminClient();
 
   const { data: channel } = await supabase
@@ -27,7 +33,7 @@ export async function ingestInboundMessage(
     console.warn(
       `ingest: no ${channelType} channel for external_id=${msg.channelExternalId}`
     );
-    return;
+    return { contactId: null, contactCreated: false };
   }
 
   // Find or create the conversation for this sender on this channel
@@ -38,6 +44,7 @@ export async function ingestInboundMessage(
     .eq("external_id", msg.conversationExternalId)
     .maybeSingle();
 
+  let contactCreated = false;
   if (!conversation) {
     const { data: contact, error: contactError } = await supabase
       .from("contacts")
@@ -64,6 +71,7 @@ export async function ingestInboundMessage(
       .single();
     if (error) throw error;
     conversation = created;
+    contactCreated = true;
   }
 
   const { error: msgError } = await supabase.from("messages").insert({
@@ -82,7 +90,9 @@ export async function ingestInboundMessage(
 
   // 23505 = duplicate external_id (webhook retry) — already ingested
   if (msgError && msgError.code !== "23505") throw msgError;
-  if (msgError?.code === "23505") return;
+  if (msgError?.code === "23505") {
+    return { contactId: conversation.contact_id, contactCreated };
+  }
 
   // The message is stored at this point; denormalised metadata failures are
   // logged (not thrown) so the platform doesn't redeliver a stored message.
@@ -108,6 +118,8 @@ export async function ingestInboundMessage(
       console.error("ingest: contact last_seen update failed", contactUpdateError);
     }
   }
+
+  return { contactId: conversation.contact_id, contactCreated };
 }
 
 async function unreadCount(

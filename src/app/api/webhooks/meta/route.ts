@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { ingestInboundMessage } from "@/lib/channels/ingest";
+import { inngest } from "@/lib/inngest/client";
 import type { ChannelType } from "@/lib/types";
 
 /**
@@ -38,16 +39,29 @@ export async function POST(req: NextRequest) {
       for (const entry of body.entry ?? []) {
         for (const event of entry.messaging ?? []) {
           if (!event.message?.text || event.message.is_echo) continue;
-          await ingestInboundMessage(channelType, {
+          const result = await ingestInboundMessage(channelType, {
             channelExternalId: String(entry.id),
             conversationExternalId: String(event.sender.id),
             messageExternalId: event.message.mid ?? null,
-            senderName: null, // enriched later via Graph profile lookup
+            senderName: null, // enriched via the contact/enrich job below
             senderHandle: String(event.sender.id),
             content: event.message.text,
             receivedAt: new Date(event.timestamp ?? Date.now()),
             raw: event,
           });
+          // Unknown sender → look up their real name out-of-band (the
+          // webhook must return 200 fast; Graph calls cost rate budget).
+          if (result.contactCreated && result.contactId) {
+            await inngest.send({
+              name: "contact/enrich",
+              data: {
+                channelType,
+                channelExternalId: String(entry.id),
+                senderId: String(event.sender.id),
+                contactId: result.contactId,
+              },
+            });
+          }
         }
       }
     } else if (body.object === "whatsapp_business_account") {
