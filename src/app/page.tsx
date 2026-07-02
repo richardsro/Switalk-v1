@@ -66,7 +66,7 @@ const STEPS = [
   },
   {
     title: "Never miss a follow-up",
-    body: "Set reminders, use templates, and close more deals with less effort.",
+    body: "Set follow-up reminders and close more deals with less effort.",
   },
 ];
 
@@ -87,11 +87,11 @@ const PLANS = [
     price: 19,
     tagline: "Everything you need to grow",
     features: [
-      "All 6 channels",
+      "All 6 inbox channels",
       "Unlimited scheduled posts",
       "Unlimited contacts",
       "Priority support",
-      "Advanced analytics",
+      "Auto-posting to Facebook & Instagram",
     ],
     highlight: true,
   },

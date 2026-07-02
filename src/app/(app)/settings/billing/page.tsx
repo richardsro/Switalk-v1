@@ -32,11 +32,11 @@ const PLANS: Array<{
     plan: "pro",
     tagline: "Everything you need to grow",
     features: [
-      "All 6 channels",
+      "All 6 inbox channels",
       "Unlimited scheduled posts",
       "Unlimited contacts",
       "Priority support",
-      "Advanced analytics",
+      "Auto-posting to Facebook & Instagram",
     ],
     highlight: true,
   },

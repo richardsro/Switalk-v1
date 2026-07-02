@@ -13,7 +13,7 @@ export default async function PostsPage() {
       .from("channels")
       .select("*")
       .eq("status", "active")
-      .in("type", ["facebook", "instagram", "linkedin", "tiktok"]),
+      .in("type", ["facebook", "instagram"]),
     supabase
       .from("scheduled_posts")
       .select("*")
@@ -26,7 +26,7 @@ export default async function PostsPage() {
       <header className="mb-6">
         <h1 className="text-xl font-extrabold tracking-tight text-gray-900">Posts</h1>
         <p className="text-sm text-gray-500">
-          Write once, schedule everywhere.
+          Write once — schedule to Facebook & Instagram.
         </p>
       </header>
 
