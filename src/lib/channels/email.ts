@@ -9,14 +9,19 @@ import type { ChannelAdapter } from "./types";
 export const emailAdapter: ChannelAdapter = {
   async sendMessage(channel, recipientExternalId, text) {
     const resend = new Resend(process.env.RESEND_API_KEY);
+    // Resend only accepts senders on domains we've verified, so send from
+    // our own identity and set Reply-To to the user's real address — the
+    // recipient's reply then forwards back into Switalk.
     const from =
       (channel.metadata?.from_address as string | undefined) ??
-      channel.external_id;
-    if (!from) throw new Error(`Channel ${channel.id} has no from address`);
+      process.env.EMAIL_FROM;
+    if (!from) throw new Error("EMAIL_FROM is not configured");
+    const replyTo = channel.external_id ?? undefined;
 
     const { data, error } = await resend.emails.send({
       from,
       to: recipientExternalId,
+      replyTo,
       subject:
         (channel.metadata?.default_subject as string | undefined) ??
         "Re: your message",

@@ -7,7 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ChannelIcon, CHANNEL_LABELS } from "@/components/channel-icon";
-import { connectTelegram, createWebchat, removeChannel } from "./actions";
+import {
+  connectEmail,
+  connectTelegram,
+  createWebchat,
+  removeChannel,
+} from "./actions";
 import type { Channel } from "@/lib/types";
 
 function embedSnippet(appUrl: string, widgetId: string) {
@@ -26,6 +31,7 @@ export function ChannelManager({
   const router = useRouter();
   const [botToken, setBotToken] = useState("");
   const [webchatName, setWebchatName] = useState("");
+  const [emailAddress, setEmailAddress] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(flashError ?? null);
@@ -35,6 +41,8 @@ export function ChannelManager({
       ? window.location.origin
       : process.env.NEXT_PUBLIC_APP_URL ?? "";
   const webchatChannels = channels.filter((c) => c.type === "webchat");
+  // Operator-configured inbound address that forwards to /api/webhooks/email.
+  const forwardAddress = process.env.NEXT_PUBLIC_EMAIL_FORWARD_ADDRESS;
 
   async function handleWebchat(e: React.FormEvent) {
     e.preventDefault();
@@ -54,6 +62,20 @@ export function ChannelManager({
     await navigator.clipboard.writeText(embedSnippet(appUrl, widgetId));
     setCopiedId(widgetId);
     setTimeout(() => setCopiedId(null), 2000);
+  }
+
+  async function handleEmail(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    const result = await connectEmail(emailAddress);
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error ?? "Failed to connect");
+      return;
+    }
+    setEmailAddress("");
+    router.refresh();
   }
 
   async function handleTelegram(e: React.FormEvent) {
@@ -200,10 +222,41 @@ export function ChannelManager({
         <CardHeader>
           <CardTitle>Email</CardTitle>
           <CardDescription>
-            Connect your own address — coming next (inbound webhook and
-            outbound sending are already wired in the backend).
+            Connect your own address: messages forwarded from it appear in
+            your inbox, and your replies go out by email.
           </CardDescription>
         </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <form onSubmit={handleEmail} className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              type="email"
+              value={emailAddress}
+              onChange={(e) => setEmailAddress(e.target.value)}
+              placeholder="you@yourbusiness.com"
+              required
+            />
+            <Button type="submit" disabled={busy}>
+              {busy ? "Connecting…" : "Connect"}
+            </Button>
+          </form>
+          {forwardAddress && (
+            <ol className="list-decimal space-y-1 pl-5 text-sm text-gray-500">
+              <li>
+                Set up auto-forwarding from your mailbox (Gmail: Settings →
+                Forwarding) to{" "}
+                <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-900">
+                  {forwardAddress}
+                </code>
+                .
+              </li>
+              <li>
+                The forwarding-confirmation email will show up in your Switalk
+                inbox — open it and confirm.
+              </li>
+              <li>Done — new mail lands here from then on.</li>
+            </ol>
+          )}
+        </CardContent>
       </Card>
     </div>
   );

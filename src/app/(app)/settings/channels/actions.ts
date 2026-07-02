@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { canAddChannel } from "@/lib/plans";
 import { getEffectivePlan, TRIAL_EXPIRED_ERROR } from "@/lib/billing";
@@ -108,6 +109,43 @@ export async function createWebchat(
     external_id: crypto.randomUUID(),
   });
   if (error) return { ok: false, error: "Could not create widget" };
+
+  revalidatePath("/settings/channels");
+  return { ok: true };
+}
+
+/**
+ * Connect an email address. The address (lowercased) becomes the channel's
+ * external_id — exactly what the inbound webhook matches on via the `to`
+ * field, so mail auto-forwarded from this address lands in the right inbox.
+ */
+export async function connectEmail(
+  address: string
+): Promise<{ ok: boolean; error?: string }> {
+  const quota = await assertChannelQuota();
+  if (!quota.ok) return quota;
+
+  const parsed = z.string().trim().toLowerCase().email().safeParse(address);
+  if (!parsed.success) {
+    return { ok: false, error: "That doesn't look like an email address" };
+  }
+
+  const supabase = createClient();
+  const { error } = await supabase.from("channels").insert({
+    user_id: quota.userId,
+    type: "email",
+    name: parsed.data,
+    external_id: parsed.data,
+  });
+  if (error) {
+    return {
+      ok: false,
+      error:
+        error.code === "23505"
+          ? "This address is already connected"
+          : "Could not save channel",
+    };
+  }
 
   revalidatePath("/settings/channels");
   return { ok: true };
