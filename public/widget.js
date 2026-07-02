@@ -104,6 +104,25 @@
       });
   };
 
+  // --- History replay (broadcasts are lost while the widget is closed) --
+  fetch(
+    origin +
+      "/api/webchat/history?widgetId=" +
+      encodeURIComponent(widgetId) +
+      "&visitorId=" +
+      encodeURIComponent(visitorId)
+  )
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (history) {
+      if (!history || !history.messages) return;
+      // The visitor's own messages are "inbound" from the business's
+      // perspective, so inbound renders on the visitor's (right) side.
+      history.messages.forEach(function (m) {
+        addMessage(m.content, m.direction === "inbound");
+      });
+    })
+    .catch(function () { /* history is a nice-to-have; chat still works */ });
+
   // --- Receive (Supabase Realtime broadcast) ---------------------------
   fetch(origin + "/api/webchat/config?widgetId=" + encodeURIComponent(widgetId))
     .then(function (r) { return r.ok ? r.json() : null; })
