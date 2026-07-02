@@ -26,7 +26,8 @@ export function PostList({
   if (posts.length === 0) {
     return (
       <p className="text-sm text-gray-500">
-        Nothing scheduled yet — your queue will appear here.
+        Nothing scheduled yet — write your first post above and it will appear
+        here.
       </p>
     );
   }

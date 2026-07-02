@@ -217,6 +217,21 @@ export async function setReminder(input: {
   return { ok: true };
 }
 
+/** Hide the first-run checklist permanently for this account. */
+export async function dismissOnboarding() {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  const { error } = await supabase
+    .from("profiles")
+    .update({ onboarded_at: new Date().toISOString() })
+    .eq("id", user.id);
+  if (error) console.error("dismissOnboarding failed", error);
+  revalidatePath("/inbox");
+}
+
 export async function cancelReminder(reminderId: string) {
   const supabase = createClient();
   const { data: reminder } = await supabase

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,7 +27,14 @@ export default async function ContactsPage() {
 
       {contacts.length === 0 ? (
         <p className="text-sm text-gray-500">
-          Contacts are created automatically when someone messages you.
+          Contacts are created automatically when someone messages you.{" "}
+          <Link
+            href="/settings/channels"
+            className="font-semibold text-brand-600 underline"
+          >
+            Connect a channel
+          </Link>{" "}
+          to get started.
         </p>
       ) : (
         <div className="flex flex-col gap-2">
