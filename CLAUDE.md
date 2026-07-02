@@ -57,10 +57,18 @@ WhatsApp numbers connect via the Meta OAuth callback (WABA ids from
 `debug_token` granular scopes → app subscribed to WABA webhooks → each phone
 number upserted as a `whatsapp` channel keyed by phone number id).
 
-Not yet built: webchat history replay on widget reopen (broadcasts are lost
-if the widget is closed); email channel
-connect UI; sender profile enrichment (Graph lookup); LinkedIn/TikTok
-adapters; follow-up reminders (CRM phase 2); team seats (Business plan).
+MVP completion pass (migration 0006): follow-up reminders (`reminder/set`
+Inngest job → `conversations.reminder_due` + email nudge; bell menu in the
+thread header); first-run onboarding checklist in /inbox (hidden once a
+channel exists or `profiles.onboarded_at` is set); email channel connect UI
+(external_id = lowercased address; outbound sends from `EMAIL_FROM` with
+Reply-To); webchat history replay (`GET /api/webchat/history`, widget renders
+it before subscribing); Messenger/IG sender enrichment (`contact/enrich` job,
+emitted only on contact creation). UI matches switalk.com brand (orange
+`brand-*` tokens, Inter, `Logo` component).
+
+Not yet built: LinkedIn/TikTok adapters; team seats (Business plan); inbound
+media messages (Meta webhook drops non-text); WhatsApp embedded signup.
 
 ## Business gates (context for prioritisation)
 

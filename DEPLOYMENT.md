@@ -48,7 +48,8 @@ launch; items marked *soft* can follow in week one.
 - [ ] Set `INNGEST_EVENT_KEY` + `INNGEST_SIGNING_KEY` in Vercel, redeploy.
 - [ ] Sync the app: Inngest dashboard → Apps → sync with
       `https://app.switalk.com/api/inngest`.
-- [ ] Verify both functions appear: `publish-post`, `send-queued-message`.
+- [ ] Verify all four functions appear: `publish-post`,
+      `send-queued-message`, `fire-reminder`, `enrich-contact`.
 - [ ] Schedule a test post 5 minutes out and watch it run.
 
 ## 4. Stripe (~45 min) — BLOCKER for revenue
@@ -115,8 +116,11 @@ add Meta channels when approved. Sequence:
       email adapter can only send from `onboarding@resend.dev`.
 - [ ] Inbound: point your forwarder at
       `https://app.switalk.com/api/webhooks/email` with header
-      `x-webhook-secret: $EMAIL_WEBHOOK_SECRET`. There's no per-user email
-      connect UI yet — treat email as beta.
+      `x-webhook-secret: $EMAIL_WEBHOOK_SECRET`. Users connect their address
+      in Settings → Channels and auto-forward their mailbox to
+      `NEXT_PUBLIC_EMAIL_FORWARD_ADDRESS`.
+- [ ] Set `EMAIL_FROM` (verified sender for user replies; Reply-To carries
+      the user's own address) and `SYSTEM_EMAIL_FROM` (reminder nudges).
 
 ## 8. Legal / business — BLOCKER (don't skip because it's boring)
 
@@ -154,10 +158,9 @@ add Meta channels when approved. Sequence:
 ## Known product gaps at launch (be honest in marketing)
 
 - WhatsApp/Instagram/Messenger pending Meta review — don't sell them as live.
-- Webchat: no history replay if the visitor closes and reopens the widget.
-- Email: no per-user connect UI yet.
-- No LinkedIn/TikTok posting (Pro tier copy says "all 6 channels" — make
-  sure the pricing page matches what's actually connectable today).
+- No LinkedIn/TikTok posting (pricing copy now says "auto-posting to
+  Facebook & Instagram" — keep it that way until adapters exist).
 - No team seats yet (don't sell Business plan, or sell it as "Pro + priority").
-- Sender names on Messenger/Instagram show as numeric IDs until profile
-  enrichment is built.
+- Inbound media (photos/voice) on Meta channels is dropped — text only.
+- Sender enrichment needs Meta App Review to pass, and Meta withholds
+  profile fields for many EU users — some contacts will stay numeric.
